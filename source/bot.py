@@ -181,7 +181,7 @@ def send_result_step(message):
 def upload_result_step(message, obj):
     if message.text in ['/save', '/publish']:
         private = True if message.text == '/save' else False
-        client.upload(message.from_user.id, obj.name, obj, private)
+        client.upload(message.from_user.id, obj, private)
         bot.send_message(message.chat.id, 'I kept it!')
     else:
         text_handler(message)

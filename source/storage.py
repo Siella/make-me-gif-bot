@@ -1,3 +1,4 @@
+import datetime as dt
 import io
 
 import config
@@ -17,7 +18,7 @@ class MinioClient:
             secure=False,
         )
 
-    def upload(self, user_id, obj_name: str, obj_bytes: bytes, private=False):
+    def upload(self, user_id, obj_bytes: bytes, private=False):
         """
         Put an object to the storage.
 
@@ -31,6 +32,9 @@ class MinioClient:
         if not self.client.bucket_exists(bucket_name):
             self.client.make_bucket(bucket_name)
         obj_bytes.seek(0)
+        obj_name = '-'.join([
+            dt.datetime.now().strftime("%m-%d-%Y-%H-%M-%S"), obj_bytes.name
+        ])
         length = obj_bytes.getbuffer().nbytes
         self.client.put_object(bucket_name, obj_name, obj_bytes, length=length)
 
