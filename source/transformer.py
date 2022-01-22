@@ -12,7 +12,7 @@ class ImageTransformer:
     a watermark.
     """
     def __init__(self, images: List[bytes], message):
-        self.chat_id = str(message.chat.id)
+        self.user_id = str(message.from_user.id)
         self.text = message.text
         self.images = [Image.open(io.BytesIO(img)) for img in images]
         self.format = 'JPEG' if len(self.images) <= 1 else 'GIF'
@@ -94,10 +94,10 @@ class ImageTransformer:
         Applies necessary transformation steps to get
         an intended result (GIF or JPEG).
 
-        :return: result in bytes
+        :return: result in bytes and its initial format
         """
         new_image_bytes = io.BytesIO()
-        new_image_bytes.name = ''.join([self.chat_id, '.', self.format])
+        new_image_bytes.name = ''.join([self.user_id, '.', self.format])
         if self.format == 'JPEG':
             image = self.images.pop(0)
             new_image = self._add_watermark(image)
@@ -109,4 +109,4 @@ class ImageTransformer:
                 save_all=True, append_images=images[1:],
                 optimize=False, duration=600, loop=0
             )
-        return new_image_bytes
+        return new_image_bytes, self.format
