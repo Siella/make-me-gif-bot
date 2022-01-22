@@ -26,13 +26,16 @@ def help(message):
 @bot.message_handler(commands=["start"])
 def start(message):
     """
-    Basic command handler. Start the process of image
+    Basic command handler. Start the process of image transformation.
+    Note that user's buffer of images is flushed each time start
+    command is typed.
     """
     chat_id = message.chat.id
     USERS[chat_id] = []
     user_first_name = message.from_user.first_name
     msg = bot.send_message(chat_id, f"Hey, {user_first_name}!"
-                                    f"\nSend me a picture, first.")
+                                    f"\nSend me one or more pictures"
+                                    f" (not grouped), first.")
     bot.register_next_step_handler(msg, process_photo_step)
 
 
@@ -79,6 +82,24 @@ def step_exception_handler(func):  # сюды логгер
     return wrapper
 
 
+def process_photo(message):
+    """
+    Adds image bytes to the USERS dictionary.
+    """
+    file_id = message.photo[-1].file_id
+    file_info = bot.get_file(file_id)
+    file_bytes = bot.download_file(file_info.file_path)
+    USERS[message.chat.id].append(file_bytes)
+
+
+@bot.message_handler(content_types=['photo'])
+def photo(message):
+    """
+    Handler for a photo content type.
+    """
+    process_photo(message)
+
+
 @step_break_handler
 @step_exception_handler
 def process_photo_step(message):
@@ -86,14 +107,11 @@ def process_photo_step(message):
     Stores images received from a user as bytes in USERS
     until /done command is typed.
     """
-    answer = "Please, send me a picture (compressed)."
+    answer = "Please, send me pictures (compressed)."
     next_step = process_photo_step
     if message.photo:
-        file_id = message.photo[-1].file_id
-        file_info = bot.get_file(file_id)
-        file_bytes = bot.download_file(file_info.file_path)
-        USERS[message.chat.id].append(file_bytes)
-        answer = "Upload another picture or type /done to go further."
+        process_photo(message)
+        answer = "Upload another pictures or type /done to go further."
     if message.text == '/done':
         next_step = process_text_step
         answer = "Next, give me a some text."
@@ -136,6 +154,6 @@ def send_result(message):
 
 
 if __name__ == '__main__':
-    bot.enable_save_next_step_handlers(delay=2)
+    bot.enable_save_next_step_handlers()
     bot.load_next_step_handlers()
     bot.infinity_polling()
