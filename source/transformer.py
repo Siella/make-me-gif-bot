@@ -5,6 +5,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
 class ImageObject:
+    """
+    Class for storing streamed image.
+
+    :param bytes: binary stream of image
+    :param name: file name with its format (e.g., My.GIF)
+    """
     def __init__(self, obj_bytes: io.BytesIO, name: str):
         self.bytes = obj_bytes
         self.name = name
