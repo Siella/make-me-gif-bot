@@ -1,9 +1,16 @@
 import datetime as dt
 import io
+import os
 
-import config
+from dotenv import load_dotenv
 from minio import Minio
 from transformer import ImageObject
+
+load_dotenv()
+
+ADDRESS = os.environ.get('MINIO_API_ADDRESS')
+ACCESS_KEY = os.environ.get('ACCESS_KEY')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 
 class MinioClient:
@@ -13,9 +20,9 @@ class MinioClient:
     """
     def __init__(self):
         self.client = Minio(
-            config.MINIO_API_ADDRESS,
-            access_key=config.ACCESS_KEY,
-            secret_key=config.SECRET_ACCESS_KEY,
+            ADDRESS,
+            access_key=ACCESS_KEY,
+            secret_key=SECRET_KEY,
             secure=False,
         )
 

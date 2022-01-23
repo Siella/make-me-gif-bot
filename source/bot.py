@@ -1,13 +1,17 @@
+import os
 from collections import defaultdict
 from functools import wraps
 
-import config
 import telebot
+from dotenv import load_dotenv
 from storage import MinioClient
 from telebot import types
 from transformer import ImageObject, ImageTransformer
 
-bot = telebot.TeleBot(config.TOKEN)
+load_dotenv()
+
+TOKEN = os.environ.get('TOKEN')
+bot = telebot.TeleBot(TOKEN)
 client = MinioClient()
 
 USERS = defaultdict(list)
@@ -87,7 +91,7 @@ def text_handler(message):
 def step_break_handler(func):
     @wraps(func)
     def wrapper(message, *args, **kwargs):
-        keyboard = types.ReplyKeyboardMarkup(True)  # сделать inline?
+        keyboard = types.ReplyKeyboardMarkup(True)
         keyboard.row('Restart')
         if message.text == 'Restart':
             bot.send_message(
@@ -172,7 +176,8 @@ def send_result_step(message):
     obj = img.transform()
     send_content(message, obj, 'All done!')
     answer = "Type /publish to upload the result in a publicly " \
-             "available storage or /save for private only keeping."
+             "available storage (only for GIFs) or /save for private " \
+             "only keeping."
     msg = bot.send_message(message.chat.id, answer)
     bot.register_next_step_handler(msg, upload_result_step, obj)
 
