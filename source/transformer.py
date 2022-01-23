@@ -4,6 +4,13 @@ from typing import List
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
+class ImageObject:
+    def __init__(self, obj_bytes: io.BytesIO, name: str):
+        self.bytes = obj_bytes
+        self.name = name
+        self.format = name[name.rfind('.')+1:]
+
+
 class ImageTransformer:
     """
     Class for an image transformation:
@@ -17,7 +24,6 @@ class ImageTransformer:
         self.images = [Image.open(io.BytesIO(img)) for img in images]
         self.format = 'JPEG' if len(self.images) <= 1 else 'GIF'
         self.width, self.height = self._define_gif_size()
-        self.url_to_upload = None
 
     def _define_gif_size(self):
         """
@@ -53,7 +59,7 @@ class ImageTransformer:
 
     def _add_watermark(self,
                        img: Image.Image,
-                       font_type: str = "arial.ttf",
+                       font_type: str = "arial",
                        font_size=1,
                        img_fraction=.7):
         """
@@ -66,10 +72,14 @@ class ImageTransformer:
         :return: image with a watermark
         """
         draw = ImageDraw.Draw(img)
-        font = ImageFont.truetype(f"fonts/{font_type}", font_size)
+        font = ImageFont.truetype(
+            f"fonts/{font_type.lower()}.ttf", font_size
+        )
         while font.getsize(self.text)[0] < img_fraction * img.size[0]:
             font_size += 1
-            font = ImageFont.truetype(f"fonts/{font_type}", font_size)
+            font = ImageFont.truetype(
+                f"fonts/{font_type.lower()}.ttf", font_size
+            )
         w_text, h_text = draw.textsize(self.text, font=font)
         draw.text((
             (self.width - w_text) // 2,
@@ -89,12 +99,12 @@ class ImageTransformer:
         expand = self._add_borders(img)
         return self._add_watermark(expand)
 
-    def transform(self):
+    def transform(self) -> ImageObject:
         """
         Applies necessary transformation steps to get
         an intended result (GIF or JPEG).
 
-        :return: result in bytes and its initial format
+        :return: ImageObject with filled data
         """
         new_image_bytes = io.BytesIO()
         new_image_bytes.name = ''.join([self.user_id, '.', self.format])
@@ -109,4 +119,6 @@ class ImageTransformer:
                 save_all=True, append_images=images[1:],
                 optimize=False, duration=600, loop=0
             )
-        return new_image_bytes, self.format
+        new_image_bytes.seek(0)
+        new_image_obj = ImageObject(new_image_bytes, new_image_bytes.name)
+        return new_image_obj

@@ -5,7 +5,7 @@ import config
 import telebot
 from storage import MinioClient
 from telebot import types
-from transformer import ImageTransformer
+from transformer import ImageObject, ImageTransformer
 
 bot = telebot.TeleBot(config.TOKEN)
 client = MinioClient()
@@ -50,8 +50,8 @@ def download_user_content(message):
     bot.send_message(message.chat.id, 'Here you go!')
     user_id = message.from_user.id
     content = client.download_generated_content(user_id)
-    for obj, type in content:
-        send_content(message, obj, type)
+    for obj in content:
+        send_content(message, obj)
 
 
 @bot.message_handler(commands=["download_all"])
@@ -69,8 +69,8 @@ def _download_all_content(message):
     if text != '/all':
         user_list = ("".join(text.split())).split(',')
     content = client.download_all_content(user_list)
-    for obj, type in content:
-        send_content(message, obj, type)
+    for obj in content:
+        send_content(message, obj)
 
 
 @bot.message_handler(content_types=["text"])
@@ -152,12 +152,12 @@ def process_text_step(message):
     bot.register_next_step_handler(msg, next_step)
 
 
-def send_content(message, obj, obj_format: str, caption=None):
+def send_content(message, obj: ImageObject, caption=None):
     chat_id = message.chat.id
-    if obj_format == 'JPEG':
-        bot.send_photo(chat_id, obj, caption=caption)
+    if obj.format == 'JPEG':
+        bot.send_photo(chat_id, obj.bytes, caption=caption)
     else:
-        bot.send_animation(chat_id, obj, None, caption=caption)
+        bot.send_animation(chat_id, obj.bytes, None, caption=caption)
 
 
 @step_break_handler
@@ -169,18 +169,17 @@ def send_result_step(message):
     """
     user_id = message.from_user.id
     img = ImageTransformer(USERS[user_id], message)
-    res, obj_format = img.transform()
-    res.seek(0)
-    send_content(message, res, obj_format, 'All done!')
+    obj = img.transform()
+    send_content(message, obj, 'All done!')
     answer = "Type /publish to upload the result in a publicly " \
              "available storage or /save for private only keeping."
     msg = bot.send_message(message.chat.id, answer)
-    bot.register_next_step_handler(msg, upload_result_step, res)
+    bot.register_next_step_handler(msg, upload_result_step, obj)
 
 
-def upload_result_step(message, obj):
+def upload_result_step(message, obj: ImageObject):
     if message.text in ['/save', '/publish']:
-        private = True if message.text == '/save' else False
+        private = (message.text == '/save') | (obj.format != 'GIF')
         client.upload(message.from_user.id, obj, private)
         bot.send_message(message.chat.id, 'I kept it!')
     else:

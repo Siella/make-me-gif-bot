@@ -3,6 +3,7 @@ import io
 
 import config
 from minio import Minio
+from transformer import ImageObject
 
 
 class MinioClient:
@@ -18,25 +19,24 @@ class MinioClient:
             secure=False,
         )
 
-    def upload(self, user_id, obj_bytes: bytes, private=False):
+    def upload(self, user_id, obj: ImageObject, private=False):
         """
         Put an object to the storage.
 
         :param user_id: user ID in Telegram
-        :param obj_name: name of object to be uploaded
-        :param obj_bytes: object as bytes to upload
+        :param obj: image object
         :param private: whether to store in a private section
         """
         access = 'private' if private else 'public'
         bucket_name = '-'.join([str(user_id), access])
         if not self.client.bucket_exists(bucket_name):
             self.client.make_bucket(bucket_name)
-        obj_bytes.seek(0)
+        obj.bytes.seek(0)
         obj_name = '-'.join([
-            dt.datetime.now().strftime("%m-%d-%Y-%H-%M-%S"), obj_bytes.name
+            dt.datetime.now().strftime("%m-%d-%Y-%H-%M-%S"), obj.name
         ])
-        length = obj_bytes.getbuffer().nbytes
-        self.client.put_object(bucket_name, obj_name, obj_bytes, length=length)
+        length = obj.bytes.getbuffer().nbytes
+        self.client.put_object(bucket_name, obj_name, obj.bytes, length=length)
 
     def _download_bucket_content(self, bucket_name):
         content = []
@@ -44,13 +44,12 @@ class MinioClient:
         for obj in objects:
             try:
                 obj_name = obj.object_name
-                obj_format = obj_name[obj_name.rfind('.')+1:]
                 response = self.client.get_object(bucket_name, obj_name)
                 stream = io.BytesIO()
                 stream.name = obj_name
                 stream.write(response.data)
                 stream.seek(0)
-                content.append((stream, obj_format))
+                content.append(ImageObject(stream, stream.name))
             finally:
                 response.close()
                 response.release_conn()
