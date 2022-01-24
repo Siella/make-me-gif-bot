@@ -4,7 +4,7 @@ import os
 
 from dotenv import load_dotenv
 from minio import Minio
-from transformer import ImageObject
+from source.transformer import ImageObject
 
 load_dotenv()
 
