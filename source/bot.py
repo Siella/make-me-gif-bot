@@ -5,6 +5,7 @@ from functools import wraps
 
 import telebot
 from dotenv import load_dotenv
+
 from source.storage import MinioClient
 from source.transformer import ImageObject, ImageTransformer
 
