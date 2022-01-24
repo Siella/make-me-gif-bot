@@ -33,7 +33,8 @@ class FakeObj:
 @patch('telebot.TeleBot.send_message', side_effect=capture_event)
 class TestBot:
     def test_command_start(self, mock1, mock2, capsys):
-        assert "Send me one or more pictures" in check_reaction('/start', capsys)
+        assert "Send me one or more pictures" \
+               in check_reaction('/start', capsys)
 
     def test_command_help(self, mock1, mock2, capsys):
         assert "I can make a GIF" in check_reaction('/help', capsys)
@@ -88,8 +89,10 @@ class TestBot:
         assert "Okay, wait a little bit" in check_reaction('', capsys)
 
     @patch('source.bot.client.upload', return_value=None)
-    @patch('source.transformer.ImageTransformer.transform', return_value=FakeObj())
     @patch('source.bot.send_content', return_value=None)
+    @patch(
+        'source.transformer.ImageTransformer.transform', return_value=FakeObj()
+    )
     def test_send_result_step(self, mock1, mock2, mock3, mock4, mock5, capsys):
         from source.bot import send_result_step, upload_result_step
 
