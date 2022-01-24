@@ -29,6 +29,12 @@ class FakeObj:
     format = 'GIF'
 
 
+class FakeClient:
+    @staticmethod
+    def upload():
+        return None
+
+
 @patch('telebot.TeleBot.register_next_step_handler', return_value=None)
 @patch('telebot.TeleBot.send_message', side_effect=capture_event)
 class TestBot:
@@ -88,7 +94,7 @@ class TestBot:
         process_text_step(msg)
         assert "Okay, wait a little bit" in check_reaction('', capsys)
 
-    @patch('source.bot.client.upload', return_value=None)
+    @patch('source.bot.client', return_value=FakeClient())
     @patch('source.bot.send_content', return_value=None)
     @patch(
         'source.transformer.ImageTransformer.transform', return_value=FakeObj()
