@@ -1,11 +1,11 @@
 import os
+import time
 from collections import defaultdict
 from functools import wraps
 
 import telebot
 from dotenv import load_dotenv
 from storage import MinioClient
-from telebot import types
 from transformer import ImageObject, ImageTransformer
 
 load_dotenv()
@@ -91,12 +91,8 @@ def text_handler(message):
 def step_break_handler(func):
     @wraps(func)
     def wrapper(message, *args, **kwargs):
-        keyboard = types.ReplyKeyboardMarkup(True)
-        keyboard.row('Restart')
-        if message.text == 'Restart':
-            bot.send_message(
-                message.chat.id, 'Okay, I stop.', reply_markup=keyboard
-            )
+        if message.text == '/restart':
+            bot.send_message(message.chat.id, 'Okay, I stop.')
             bot.clear_step_handler_by_chat_id(message.chat.id)
             return
         return func(message, *args, **kwargs)
@@ -114,7 +110,7 @@ def process_photo(message):
 
 
 @bot.message_handler(content_types=['photo'])
-def photo(message):
+def photo_handler(message):
     """
     Handler for a photo content type.
     """
@@ -130,7 +126,8 @@ def process_photo_step(message):
     answer = "Please, send me pictures (compressed)."
     next_step = process_photo_step
     if message.photo:
-        process_photo(message)
+        photo_handler(message)
+        time.sleep(2)
         answer = "Upload another pictures or type /done to go further."
     if message.text == '/done':
         next_step = process_text_step
