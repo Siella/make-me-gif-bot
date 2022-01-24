@@ -1,3 +1,4 @@
+import io
 import os
 
 from PIL import Image
@@ -44,6 +45,13 @@ def test_image_transformer():
     assert transformer.user_id == '11'
 
     result = transformer.transform().bytes
-    im_result = Image.open(result)
-    assert im3.mode == im_result.mode
-    assert im3.size == im_result.size
+    im4 = Image.open(result)
+
+    bytes_1 = io.BytesIO()
+    im3.save(bytes_1, 'gif')
+    bytes_1.seek(0)
+
+    bytes_2 = io.BytesIO()
+    im4.save(bytes_2, 'gif')
+    bytes_2.seek(0)
+    assert bytes_1.getvalue() == bytes_2.getvalue()
