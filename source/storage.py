@@ -1,6 +1,7 @@
 import datetime as dt
 import io
 import os
+from typing import List
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -77,7 +78,7 @@ class MinioClient:
                 content.extend(self._download_bucket_content(bucket))
         return content
 
-    def download_all_content(self, user_id_list=[]):
+    def download_all_content(self, user_id_list: List[str] = []):
         """
         Get all users' (or specific list of users) content.
 
