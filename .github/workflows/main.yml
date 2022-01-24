@@ -12,6 +12,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Run script
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
         run: |
           pip install flake8 isort pytest
           pip install -r requirements.txt
