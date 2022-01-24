@@ -13,7 +13,7 @@ load_dotenv()
 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
-client = MinioClient()
+client = None
 
 USERS = defaultdict(list)
 
@@ -189,6 +189,7 @@ def upload_result_step(message, obj: ImageObject):
 
 
 if __name__ == '__main__':
+    client = MinioClient()
     bot.enable_save_next_step_handlers()
     bot.load_next_step_handlers()
     bot.infinity_polling()
