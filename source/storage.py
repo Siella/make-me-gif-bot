@@ -47,7 +47,7 @@ class MinioClient:
         length = obj.bytes.getbuffer().nbytes
         self.client.put_object(bucket_name, obj_name, obj.bytes, length=length)
 
-    def _download_bucket_content(self, bucket_name):
+    def _download_bucket_content(self, bucket_name) -> List[ImageObject]:
         content = []
         objects = self.client.list_objects(bucket_name)
         for obj in objects:
@@ -64,7 +64,7 @@ class MinioClient:
                 response.release_conn()
         return content
 
-    def download_generated_content(self, user_id):
+    def download_generated_content(self, user_id) -> List[ImageObject]:
         """
         Get objects for a specified user.
 
@@ -78,7 +78,8 @@ class MinioClient:
                 content.extend(self._download_bucket_content(bucket))
         return content
 
-    def download_all_content(self, user_id_list: List[str] = []):
+    def download_all_content(
+            self, user_id_list: List[str] = []) -> List[ImageObject]:
         """
         Get all users' (or specific list of users) content.
 
@@ -86,11 +87,15 @@ class MinioClient:
         :return: users' content (only public)
         """
         all_content = []
-        public_buckets = [bucket.name for bucket in self.client.list_buckets()
-                          if '-public' in bucket.name]
+        public_buckets = [
+            bucket.name for bucket in self.client.list_buckets()
+            if '-public' in bucket.name
+        ]
         if user_id_list:
-            public_buckets = [bucket for bucket in public_buckets
-                              if bucket[:bucket.rfind('-')] in user_id_list]
+            public_buckets = [
+                bucket for bucket in public_buckets
+                if bucket[:bucket.rfind('-')] in user_id_list
+            ]
         for bucket in public_buckets:
             all_content.extend(self._download_bucket_content(bucket))
         return all_content
