@@ -2,3 +2,4 @@ minio==7.1.2
 Pillow==9.0.0
 pyTelegramBotAPI==4.3.1
 python-dotenv==0.19.2
+urllib3==1.26.8
