@@ -1,0 +1,10 @@
+README.md
+docker-compose.yml
+.git
+.idea
+.coverage
+*.html
+.pytest_cache
+**/__pycache__
+venv
+.env

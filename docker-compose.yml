@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TOKEN: ${TOKEN}
+      MINIO_API_ADDRESS: ${MINIO_API_ADDRESS}
+      ACCESS_KEY: ${ACCESS_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    networks:
+      mynet:
+  minio-service:
+    image: minio/minio
+    networks:
+      mynet:
+        ipv4_address: ${ADDRESS}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${SECRET_KEY}
+    volumes:
+      - minio-storage:/data
+    command: server --address ":9000" --console-address ":9001" /data
+volumes:
+  minio-storage:
+networks:
+  mynet:
+    name: mynet
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: ${SUBNET}
+        gateway: ${GATEWAY}

@@ -1,0 +1,26 @@
+name: CI
+
+on: push
+
+jobs:
+  code_quality:
+    runs-on: ubuntu-latest
+    name: Checks with black, isort and possibly run tests
+    container: python:3.9
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run script
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          MINIO_API_ADDRESS: ${{ secrets.MINIO_API_ADDRESS }}
+          ACCSESS_KEY: ${{ secrets.ACCESS_KEY }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        run: |
+          pip install flake8 isort pytest
+          pip install -r requirements.txt
+          ls -la
+          flake8 .
+          isort --check .
+          py.test tests
