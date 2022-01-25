@@ -5,6 +5,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      TOKEN: ${TOKEN}
+      MINIO_API_ADDRESS: ${MINIO_API_ADDRESS}
+      ACCESS_KEY: ${ACCESS_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    networks:
+      mynet:
   minio-service:
     image: minio/minio
     networks:
