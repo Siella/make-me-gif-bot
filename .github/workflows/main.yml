@@ -14,6 +14,9 @@ jobs:
       - name: Run script
         env:
           TOKEN: ${{ secrets.TOKEN }}
+          MINIO_API_ADDRESS: ${{ secrets.MINIO_API_ADDRESS }}
+          ACCSESS_KEY: ${{ secrets.ACCESS_KEY }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
           pip install flake8 isort pytest
           pip install -r requirements.txt
