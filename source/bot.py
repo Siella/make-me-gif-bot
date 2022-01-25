@@ -2,28 +2,21 @@ import os
 import time
 from collections import defaultdict
 from functools import wraps
-from pathlib import Path
 
 import telebot
 from dotenv import load_dotenv
 
 from source.storage import MinioClient
 from source.transformer import ImageObject, ImageTransformer
+from source.utils import FONT_SIZES, FONT_TYPES, Settings
 
 load_dotenv()
 
 TOKEN = os.environ.get('TOKEN')
-bot = telebot.TeleBot(TOKEN)
-client = None
-
 USERS = defaultdict(lambda: defaultdict(list))
 
-
-class Settings:
-    def __init__(self, text, font_family, font_size):
-        self.text = text
-        self.font_family = font_family
-        self.font_size = font_size
+bot = telebot.TeleBot(TOKEN)
+client = MinioClient()
 
 
 @bot.message_handler(commands=["help"])
@@ -98,6 +91,9 @@ def text_handler(message):
 
 
 def step_break_handler(func):
+    """
+    Breaks interaction with a user if /restart is typed.
+    """
     @wraps(func)
     def wrapper(message, *args, **kwargs):
         if message.text == '/restart':
@@ -145,20 +141,6 @@ def process_photo_step(message):
     bot.register_next_step_handler(msg, next_step)
 
 
-def parse_available_font_types():
-    files = os.listdir(
-        os.path.join(
-            Path(os.path.dirname(__file__)).parent, 'fonts')
-    )
-    return list(map(lambda x: x[:x.rfind('.')], files))
-
-
-FONT_TYPES = parse_available_font_types()
-FONT_SIZES = {
-    '/small': 0.3,
-    '/medium': 0.7,
-    '/large': 0.9,
-}
 font_commands = list(map(lambda x: '/' + x, FONT_TYPES))
 answer_font = '\n'.join(["Choose a font:"] + font_commands)
 answer_size = '\n'.join(["Choose font size:"] + list(FONT_SIZES))
@@ -241,8 +223,8 @@ def send_result_step(message):
     settings = Settings(*USERS[user_id]['settings'])
     obj = ImageTransformer(images, settings, message).transform()
     send_content(message, obj, 'All done!')
-    answer = "Type /publish to upload the result in a publicly " \
-             "available storage (only for GIFs) or /save for private " \
+    answer = "Type /publish (only for GIFs) to upload the result " \
+             "in a publicly available storage or /save for private " \
              "only keeping."
     msg = bot.send_message(message.chat.id, answer)
     bot.register_next_step_handler(msg, upload_result_step, obj)
@@ -258,7 +240,6 @@ def upload_result_step(message, obj: ImageObject):
 
 
 if __name__ == '__main__':
-    client = MinioClient()
     bot.enable_save_next_step_handlers()
     bot.load_next_step_handlers()
     bot.infinity_polling()
