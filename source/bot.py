@@ -2,9 +2,11 @@ import os
 import time
 from collections import defaultdict
 from functools import wraps
+from urllib.error import HTTPError
 
 import telebot
 from dotenv import load_dotenv
+from urllib3.exceptions import MaxRetryError
 
 from source.storage import MinioClient
 from source.transformer import ImageObject, ImageTransformer
@@ -55,7 +57,11 @@ def start(message):
 def download_user_content(message):
     bot.send_message(message.chat.id, 'Here you go!')
     user_id = message.from_user.id
-    content = client.download_generated_content(user_id)
+    try:
+        content = client.download_generated_content(user_id)
+    except (MaxRetryError, HTTPError):
+        bot.reply_to(message, 'Sorry, storage is not reachable.')
+        return
     for obj in content:
         send_content(message, obj)
 
@@ -74,7 +80,11 @@ def _download_all_content(message):
     text = message.text
     if text != '/all':
         user_list = ("".join(text.split())).split(',')
-    content = client.download_all_content(user_list)
+    try:
+        content = client.download_all_content(user_list)
+    except (MaxRetryError, HTTPError):
+        bot.reply_to(message, 'Sorry, storage is not reachable.')
+        return
     for obj in content:
         send_content(message, obj)
 
@@ -233,8 +243,11 @@ def send_result_step(message):
 def upload_result_step(message, obj: ImageObject):
     if message.text in ['/save', '/publish']:
         private = (message.text == '/save') | (obj.format != 'GIF')
-        client.upload(message.from_user.id, obj, private)
-        bot.send_message(message.chat.id, 'I kept it!')
+        try:
+            client.upload(message.from_user.id, obj, private)
+            bot.send_message(message.chat.id, 'I kept it!')
+        except (MaxRetryError, HTTPError):
+            bot.reply_to(message, 'Sorry, storage is not reachable.')
     else:
         text_handler(message)
 
