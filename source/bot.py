@@ -2,6 +2,7 @@ import os
 import time
 from collections import defaultdict
 from functools import wraps
+from pathlib import Path
 
 import telebot
 from dotenv import load_dotenv
@@ -15,7 +16,14 @@ TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 client = None
 
-USERS = defaultdict(list)
+USERS = defaultdict(lambda: defaultdict(list))
+
+
+class Settings:
+    def __init__(self, text, font_family, font_size):
+        self.text = text
+        self.font_family = font_family
+        self.font_size = font_size
 
 
 @bot.message_handler(commands=["help"])
@@ -42,7 +50,7 @@ def start(message):
     """
     chat_id = message.chat.id
     user_id = message.from_user.id
-    USERS[user_id] = []
+    USERS[user_id] = {'images': [], 'settings': []}
     user_first_name = message.from_user.first_name
     msg = bot.send_message(chat_id, f"Hey, {user_first_name}!"
                                     f"\nSend me one or more pictures"
@@ -107,7 +115,7 @@ def process_photo(message):
     file_id = message.photo[-1].file_id
     file_info = bot.get_file(file_id)
     file_bytes = bot.download_file(file_info.file_path)
-    USERS[message.from_user.id].append(file_bytes)
+    USERS[message.from_user.id]['images'].append(file_bytes)
 
 
 @bot.message_handler(content_types=['photo'])
@@ -137,16 +145,75 @@ def process_photo_step(message):
     bot.register_next_step_handler(msg, next_step)
 
 
+def parse_available_font_types():
+    files = os.listdir(
+        os.path.join(
+            Path(os.path.dirname(__file__)).parent, 'fonts')
+    )
+    return list(map(lambda x: x[:x.rfind('.')], files))
+
+
+FONT_TYPES = parse_available_font_types()
+FONT_SIZES = {
+    '/small': 0.3,
+    '/medium': 0.7,
+    '/large': 0.9,
+}
+font_commands = list(map(lambda x: '/' + x, FONT_TYPES))
+answer_font = '\n'.join(["Choose a font:"] + font_commands)
+answer_size = '\n'.join(["Choose font size:"] + list(FONT_SIZES))
+
+
 @step_break_handler
 def process_text_step(message):
     """
     Asks for a watermark as text. If text is passed,
-    the bot goes to a GIF/image transformation step.
+    the bot goes to a font selection step.
     """
     answer = "Please, send me some symbols."
     next_step = process_text_step
     if message.text:
-        answer = "Okay, wait a little bit..."
+        user_id = message.from_user.id
+        text = message.text
+        USERS[user_id]['settings'].append(text)
+        answer = answer_font
+        next_step = process_font_type_step
+    msg = bot.send_message(message.chat.id, answer)
+    bot.register_next_step_handler(msg, next_step)
+
+
+@step_break_handler
+def process_font_type_step(message):
+    """
+    Asks for a font family. If available font
+    is passed, the bot goes to a size selection step.
+    """
+    answer = answer_font
+    next_step = process_font_type_step
+    if message.text in font_commands:
+        user_id = message.from_user.id
+        font_family = message.text[1:]
+        USERS[user_id]['settings'].append(font_family)
+        answer = answer_size
+        next_step = process_font_size_step
+    msg = bot.send_message(message.chat.id, answer)
+    bot.register_next_step_handler(msg, next_step)
+
+
+@step_break_handler
+def process_font_size_step(message):
+    """
+    Asks for a font size (as aspect ratio). If proper
+    command for size is passed, the bot goes to
+    a GIF/photo creation step.
+    """
+    answer = answer_size
+    next_step = process_font_size_step
+    if message.text in FONT_SIZES:
+        user_id = message.from_user.id
+        font_size = FONT_SIZES[message.text]
+        USERS[user_id]['settings'].append(font_size)
+        answer = 'Okay, wait a little bit...'
         bot.send_message(message.chat.id, answer)
         send_result_step(message)
         return
@@ -170,7 +237,9 @@ def send_result_step(message):
     If several images were received, returns a GIF with a watermark.
     """
     user_id = message.from_user.id
-    obj = ImageTransformer(USERS[user_id], message).transform()
+    images = USERS[user_id]['images']
+    settings = Settings(*USERS[user_id]['settings'])
+    obj = ImageTransformer(images, settings, message).transform()
     send_content(message, obj, 'All done!')
     answer = "Type /publish to upload the result in a publicly " \
              "available storage (only for GIFs) or /save for private " \

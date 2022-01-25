@@ -4,6 +4,7 @@ import os
 from PIL import Image
 from telebot import types
 
+from source.bot import Settings
 from source.transformer import ImageTransformer
 
 
@@ -33,10 +34,11 @@ def create_text_message(text):
 
 
 msg = create_text_message('test')
+settings = Settings(msg.text, 'arial', 0.7)
 
 
 def test_image_transformer():
-    transformer = ImageTransformer([im1, im2], msg)
+    transformer = ImageTransformer([im1, im2], settings, msg)
 
     assert transformer.width == 700
     assert transformer.height == 525

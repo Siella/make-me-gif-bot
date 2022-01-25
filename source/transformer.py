@@ -24,9 +24,11 @@ class ImageTransformer:
     and adds a watermark. If one was passed, only adds
     a watermark.
     """
-    def __init__(self, images: List[bytes], message):
+    def __init__(self, images: List[bytes], settings, message):
         self.user_id = str(message.from_user.id)
-        self.text = message.text
+        self.text = settings.text
+        self.font_family = settings.font_family
+        self.img_fraction = settings.font_size
         self.images = [Image.open(io.BytesIO(img)) for img in images]
         self.format = 'JPEG' if len(self.images) <= 1 else 'GIF'
         self.width, self.height = self._define_gif_size()
@@ -63,11 +65,7 @@ class ImageTransformer:
         )
         return expand
 
-    def _add_watermark(self,
-                       img: Image.Image,
-                       font_type: str = "arial",
-                       font_size=1,
-                       img_fraction=.7):
+    def _add_watermark(self, img: Image.Image, font_size=1):
         """
         Adds a watermark to an image.
 
@@ -79,12 +77,12 @@ class ImageTransformer:
         """
         draw = ImageDraw.Draw(img)
         font = ImageFont.truetype(
-            f"fonts/{font_type.lower()}.ttf", font_size
+            f"fonts/{self.font_family}.ttf", font_size
         )
-        while font.getsize(self.text)[0] < img_fraction * img.size[0]:
+        while font.getsize(self.text)[0] < self.img_fraction * img.size[0]:
             font_size += 1
             font = ImageFont.truetype(
-                f"fonts/{font_type.lower()}.ttf", font_size
+                f"fonts/{self.font_family}.ttf", font_size
             )
         w_text, h_text = draw.textsize(self.text, font=font)
         draw.text((

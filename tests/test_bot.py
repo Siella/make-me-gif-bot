@@ -80,10 +80,10 @@ class TestBot:
         msg.text = '/done'
         process_photo_step(msg)
         del USERS[msg.from_user.id]
-        assert "Next, give me" in check_reaction('', capsys, msg)
+        assert "Next, give me a some text" in check_reaction('', capsys, msg)
 
-    @patch('source.bot.send_result_step', return_value=None)
-    def test_text_process_step(self, mock1, mock2, mock3, capsys):
+    @patch('source.bot.process_font_type_step', return_value=None)
+    def test_process_text_step(self, mock1, mock2, mock3, capsys):
         from source.bot import process_text_step
 
         msg = create_text_message('')
@@ -92,7 +92,31 @@ class TestBot:
 
         msg.text = 'test'
         process_text_step(msg)
-        assert "Okay, wait a little bit" in check_reaction('', capsys)
+        assert "Choose a font" in check_reaction('', capsys)
+
+    @patch('source.bot.process_font_size_step', return_value=None)
+    def test_process_font_type_step(self, mock1, mock2, mock3, capsys):
+        from source.bot import process_font_type_step
+
+        msg = create_text_message('')
+        process_font_type_step(msg)
+        assert "Choose a font" in check_reaction('', capsys)
+
+        msg.text = '/arial'
+        process_font_type_step(msg)
+        assert "Choose font size" in check_reaction('', capsys)
+
+    @patch('source.bot.send_result_step', return_value=None)
+    def test_process_font_size_step(self, mock1, mock2, mock3, capsys):
+        from source.bot import process_font_size_step
+
+        msg = create_text_message('')
+        process_font_size_step(msg)
+        assert "Choose font size" in check_reaction('', capsys)
+
+        msg.text = '/medium'
+        process_font_size_step(msg)
+        assert "Okay, wait" in check_reaction('', capsys)
 
     @patch('source.bot.client', return_value=FakeClient())
     @patch('source.bot.send_content', return_value=None)
