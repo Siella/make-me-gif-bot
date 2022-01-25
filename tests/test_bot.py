@@ -128,7 +128,7 @@ class TestBot:
 
         msg = create_text_message('')
         send_result_step(msg)
-        assert "Type /publish to upload" in check_reaction('', capsys)
+        assert "Type /publish (only for GIFs)" in check_reaction('', capsys)
 
         obj = FakeObj()
         msg.text = '/publish'
