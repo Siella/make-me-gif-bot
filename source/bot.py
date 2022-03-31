@@ -1,14 +1,16 @@
+import io
 import time
 from functools import wraps
+from typing import List
 from urllib.error import HTTPError
 
 import telebot
 from urllib3.exceptions import MaxRetryError
 
-from source.config import (FONT_COMMANDS, FONT_SIZES, IMAGES, MSG, SETTINGS,
-                           TOKEN)
+from source.config import (BATCH_SIZE, FONT_COMMANDS, FONT_SIZES, IMAGES, MSG,
+                           SETTINGS, TOKEN)
 from source.storage import MinioClient
-from source.transformer import ImageObject, ImageTransformer
+from source.transformer import ImageTransformer
 
 bot = telebot.TeleBot(TOKEN)
 client = MinioClient()
@@ -29,23 +31,28 @@ def start(message):
     Note that user's buffer of images is flushed each time start
     command is typed.
     """
+    IMAGES[message.from_user.id] = []  # refresh buffer
     chat_id = message.chat.id
     user_first_name = message.from_user.first_name
     msg = bot.send_message(chat_id, MSG.start.format(user_first_name))
     bot.register_next_step_handler(msg, process_photo_step)
 
 
+def connect_storage(func):
+    def wrapper(message, *args, **kwargs):
+        try:
+            func(message, *args, **kwargs)
+        except (MaxRetryError, HTTPError):
+            bot.reply_to(message, MSG.storage_exc)
+            return
+    return wrapper
+
+
 @bot.message_handler(commands=["download"])
 def download_user_content(message):
+    user_id = str(message.from_user.id)
     bot.send_message(message.chat.id, MSG.download)
-    user_id = message.from_user.id
-    try:
-        content = client.download_generated_content(user_id)
-    except (MaxRetryError, HTTPError):
-        bot.reply_to(message, MSG.storage_exc)
-        return
-    for obj in content:
-        send_content(message, obj)
+    _download_all_content(message, [user_id])
 
 
 @bot.message_handler(commands=["download_all"])
@@ -54,18 +61,32 @@ def download_all_content(message):
     bot.register_next_step_handler(msg, _download_all_content)
 
 
-def _download_all_content(message):
-    user_list = []
+@connect_storage
+def _download_all_content(message, user_list: List[str] = []):
     text = message.text
-    if text != '/all':
+    if text != '/all' and not user_list:
         user_list = ("".join(text.split())).split(',')
-    try:
-        content = client.download_all_content(user_list)
-    except (MaxRetryError, HTTPError):
-        bot.reply_to(message, MSG.storage_exc)
+    content = client.download_all_content(user_list)
+    message.text = '/Y'  # first mock answer
+    send_batch(message, content)
+
+
+def send_batch(message, content: List[io.BytesIO] = []):
+    if message.text != '/Y':  # answer for question ``More?``
         return
-    for obj in content:
+    for i, obj in enumerate(content, 1):
         send_content(message, obj)
+        if i % BATCH_SIZE == 0:
+            msg = bot.send_message(message.chat.id, MSG.more)
+            bot.register_next_step_handler(
+                msg, send_batch, content[BATCH_SIZE:]
+            )
+            break
+
+
+def send_content(message, obj: io.BytesIO, caption=None):
+    chat_id = message.chat.id
+    bot.send_document(chat_id, obj, caption=caption)
 
 
 @bot.message_handler(content_types=["text"])
@@ -181,14 +202,6 @@ def process_font_size_step(message):
     bot.register_next_step_handler(msg, process_font_size_step)
 
 
-def send_content(message, obj: ImageObject, caption=None):
-    chat_id = message.chat.id
-    if obj.format == 'JPEG':
-        bot.send_photo(chat_id, obj.bytes, caption=caption)
-    else:
-        bot.send_animation(chat_id, obj.bytes, None, caption=caption)
-
-
 @step_break_handler
 def send_result_step(message):
     """
@@ -196,23 +209,20 @@ def send_result_step(message):
     If one image was received, returns a photo with a watermark.
     If several images were received, returns a GIF with a watermark.
     """
+    chat_id = message.chat.id
     user_id = message.from_user.id
-    images = IMAGES[user_id]
-    settings = SETTINGS[user_id]
-    obj = ImageTransformer(images, settings, message).transform()
-    send_content(message, obj, 'All done!')
-    msg = bot.send_message(message.chat.id, MSG.finish)
+    obj = ImageTransformer(user_id).transform()
+    send_content(message, obj, caption='All done!')
+    msg = bot.send_message(chat_id, MSG.finish)
     bot.register_next_step_handler(msg, upload_result_step, obj)
 
 
-def upload_result_step(message, obj: ImageObject):
+@connect_storage
+def upload_result_step(message, obj: io.BytesIO):
     if message.text in ['/save', '/publish']:
-        private = (message.text == '/save') | (obj.format != 'GIF')
-        try:
-            client.upload(message.from_user.id, obj, private)
-            bot.send_message(message.chat.id, MSG.saved)
-        except (MaxRetryError, HTTPError):
-            bot.reply_to(message, MSG.storage_exc)
+        is_private = (message.text == '/save') | (obj.name[-3:] != 'GIF')
+        client.upload(message.from_user.id, obj, is_private)
+        bot.send_message(message.chat.id, MSG.saved)
     else:
         text_handler(message)
 
