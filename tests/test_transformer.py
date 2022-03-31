@@ -4,8 +4,9 @@ import os
 from PIL import Image
 from telebot import types
 
-from source.bot import Settings
+from source.config import IMAGES, SETTINGS
 from source.transformer import ImageTransformer
+from source.utils import Settings
 
 
 def find_test_file(name):
@@ -17,12 +18,12 @@ def find_test_file(name):
 
 
 with open(find_test_file('1.jpg'), "rb") as image:
-    f = image.read()
-    im1 = bytearray(f)
+    im1 = image.read()
 
 with open(find_test_file('2.jpg'), "rb") as image:
-    f = image.read()
-    im2 = bytearray(f)
+    im2 = image.read()
+IMAGES['test_user'] = [im1, im2]
+
 
 im3 = Image.open(find_test_file('3.gif'))
 
@@ -34,19 +35,21 @@ def create_text_message(text):
 
 
 msg = create_text_message('test')
-settings = Settings(msg.text, 'arial', 0.7)
+s = Settings()
+s.text, s.font_family, s.font_size = msg.text, 'arial', 0.7
+SETTINGS['test_user'] = s
 
 
 def test_image_transformer():
-    transformer = ImageTransformer([im1, im2], settings, msg)
+    transformer = ImageTransformer('test_user')
 
     assert transformer.width == 700
     assert transformer.height == 525
     assert transformer.format == 'GIF'
     assert transformer.text == 'test'
-    assert transformer.user_id == '11'
+    assert transformer.user_id == 'test_user'
 
-    result = transformer.transform().bytes
+    result = transformer.transform()
     im4 = Image.open(result)
     assert im3.mode == im4.mode
     assert im3.size == im4.size
@@ -58,4 +61,7 @@ def test_image_transformer():
     bytes_2 = io.BytesIO()
     im4.save(bytes_2, 'gif')
     bytes_2.seek(0)
-    assert bytes_1.getvalue()[:3000] == bytes_2.getvalue()[:3000]
+    assert bytes_1.getvalue()[:900] == bytes_2.getvalue()[:900]
+
+    del SETTINGS['test_user']
+    del IMAGES['test_user']

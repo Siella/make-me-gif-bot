@@ -1,23 +1,9 @@
 import io
-from typing import List, Tuple
+from typing import Tuple
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-from source.utils import Settings
-
-
-class ImageObject:
-    """
-    Class for storing streamed image.
-
-    :ivar bytes: binary stream of image
-    :ivar name: file name with its format (e.g., My.GIF)
-    :ivar format: file format from its name
-    """
-    def __init__(self, obj_bytes: io.BytesIO, name: str):
-        self.bytes = obj_bytes
-        self.name = name
-        self.format = name[name.rfind('.')+1:]
+from source.config import IMAGES, SETTINGS
 
 
 class ImageTransformer:
@@ -36,12 +22,12 @@ class ImageTransformer:
     :ivar width: resulting image width
     :ivar height: resulting image height
     """
-    def __init__(self, images: List[bytes], settings: Settings, message):
-        self.user_id = str(message.from_user.id)
-        self.text = settings.text
-        self.font_family = settings.font_family
-        self.img_fraction = settings.font_size
-        self.images = [Image.open(io.BytesIO(img)) for img in images]
+    def __init__(self, user_id: int):
+        self.user_id = str(user_id)
+        self.text = SETTINGS[user_id].text
+        self.font_family = SETTINGS[user_id].font_family
+        self.img_fraction = SETTINGS[user_id].font_size
+        self.images = [Image.open(io.BytesIO(img)) for img in IMAGES[user_id]]
         self.format = 'JPEG' if len(self.images) <= 1 else 'GIF'
         self.width, self.height = self._define_gif_size()
 
@@ -76,7 +62,8 @@ class ImageTransformer:
         )
         return expand
 
-    def _add_watermark(self, img: Image.Image, font_size=1) -> Image.Image:
+    def _add_watermark(self, img: Image.Image,
+                       font_size: int = 1) -> Image.Image:
         """
         Adds a watermark to an image.
 
@@ -84,7 +71,8 @@ class ImageTransformer:
         :param font_size: initial font size
         :return: image with a watermark
         """
-        draw = ImageDraw.Draw(img)
+        txt = Image.new("RGBA", img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(txt)
         font = ImageFont.truetype(
             f"fonts/{self.font_family}.ttf", font_size
         )
@@ -97,9 +85,10 @@ class ImageTransformer:
         draw.text((
             (self.width - w_text) // 2,
             (self.height - h_text) // 2),
-            self.text, font=font, fill='black'
+            self.text, font=font, fill=(0, 0, 0, 128)
         )
-        return img
+        out = Image.alpha_composite(img.convert('RGBA'), txt)
+        return out.convert('RGB')
 
     def _process_image(self, img: Image.Image) -> Image.Image:
         """
@@ -110,9 +99,10 @@ class ImageTransformer:
         :return: expanded image with a watermark
         """
         expand = self._add_borders(img)
-        return self._add_watermark(expand)
+        watermark = self._add_watermark(expand)
+        return watermark
 
-    def transform(self) -> ImageObject:
+    def transform(self) -> io.BytesIO:
         """
         Applies necessary transformation steps to get
         an intended result (GIF or JPEG).
@@ -133,5 +123,4 @@ class ImageTransformer:
                 optimize=False, duration=600, loop=0
             )
         new_image_bytes.seek(0)
-        new_image_obj = ImageObject(new_image_bytes, new_image_bytes.name)
-        return new_image_obj
+        return new_image_bytes

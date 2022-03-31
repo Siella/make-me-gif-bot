@@ -6,12 +6,6 @@ from unittest.mock import patch
 from source.storage import MinioClient
 
 
-class FakeObj:
-    def __init__(self, name: str, data: str = 'test'):
-        self.name = name
-        self.bytes = io.BytesIO(str.encode(data))
-
-
 class FakeResponse:
     def __init__(self, name: str, bytes_: io.BytesIO):
         self.data = bytes_.getvalue()
@@ -78,9 +72,10 @@ class FakeClient:
 def test_minio_client(mock):
     client = MinioClient()
 
-    client.upload(user_id=1, obj=FakeObj('test_1'), private=True)
-    client.upload(user_id=2, obj=FakeObj('test_2'), private=True)
-    client.upload(user_id=2, obj=FakeObj('test_3'), private=False)
+    for i, private in zip([1, 2, 3], [True, True, False]):
+        obj_bytes = io.BytesIO(f'test_{i}'.encode())
+        obj_bytes.name = f'test_{i}.GIF'
+        client.upload(user_id=i, obj=obj_bytes, private=private)
     assert len(client.client.buckets) == 3
 
     content = client.download_all_content()
@@ -90,7 +85,4 @@ def test_minio_client(mock):
     assert date in content[0].name
 
     content = client.download_all_content(['1', '2'])
-    assert len(content) == 1
-
-    content = client.download_generated_content(2)
-    assert len(content) == 2
+    assert len(content) == 0
