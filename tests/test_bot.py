@@ -29,6 +29,7 @@ def check_reaction(text: str, capsys, msg=None):
 
 class FakeObj:
     format = 'GIF'
+    name = ''.join(['test', format])
 
 
 class FakeClient:
