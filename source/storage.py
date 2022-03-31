@@ -5,7 +5,6 @@ from typing import List, Union
 from minio import Minio
 
 from source.config import ACCESS_KEY, ADDRESS, SECRET_KEY
-from source.transformer import ImageObject
 
 
 class MinioClient:
@@ -23,8 +22,8 @@ class MinioClient:
 
     def upload(self,
                user_id: Union[int, str],
-               obj: ImageObject,
-               private: bool = False):
+               obj: io.BytesIO,
+               private: bool = False) -> None:
         """
         Put an object to the storage.
 
@@ -36,14 +35,14 @@ class MinioClient:
         bucket_name = '-'.join([str(user_id), access])
         if not self.client.bucket_exists(bucket_name):
             self.client.make_bucket(bucket_name)
-        obj.bytes.seek(0)
+        obj.seek(0)
         obj_name = '-'.join([
             dt.datetime.now().strftime("%m-%d-%Y-%H-%M-%S"), obj.name
         ])
-        length = obj.bytes.getbuffer().nbytes
-        self.client.put_object(bucket_name, obj_name, obj.bytes, length=length)
+        length = obj.getbuffer().nbytes
+        self.client.put_object(bucket_name, obj_name, obj, length=length)
 
-    def _download_bucket_content(self, bucket_name: str) -> List[ImageObject]:
+    def _download_bucket_content(self, bucket_name: str) -> List[io.BytesIO]:
         content = []
         objects = self.client.list_objects(bucket_name)
         for obj in objects:
@@ -54,28 +53,14 @@ class MinioClient:
             stream.name = obj_name
             stream.write(response.data)
             stream.seek(0)
-            content.append(ImageObject(stream, stream.name))
+            content.append(stream)
             # disconnect from storage
             response.close()
             response.release_conn()
         return content
 
-    def download_generated_content(self, user_id) -> List[ImageObject]:
-        """
-        Get objects for a specified user.
-
-        :param user_id: user ID in Telegram
-        :return: user's content (public & private)
-        """
-        content = []
-        for access in ['public', 'private']:
-            bucket = '-'.join([str(user_id), access])
-            if self.client.bucket_exists(bucket):
-                content.extend(self._download_bucket_content(bucket))
-        return content
-
     def download_all_content(
-            self, user_id_list: List[str] = []) -> List[ImageObject]:
+            self, user_id_list: List[str] = []) -> List[io.BytesIO]:
         """
         Get all users' (or specific list of users) content.
 
