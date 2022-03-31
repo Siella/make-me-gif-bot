@@ -14,6 +14,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 IMAGES = defaultdict(list)
 SETTINGS = defaultdict(lambda: Settings())
+BATCH_SIZE = 2
 
 FONT_TYPES = parse_available_font_types()
 FONT_COMMANDS = list(
@@ -49,6 +50,7 @@ class MSG:
         "Type IDs of users whom content you'd like to download "\
         "(comma-separated, e.g., 1,2,3,...) or type /all "\
         "to get all available content."
+    more = "More? (/Y or /N)"
 
     text = "Try to type /start or /help command."
     restart = "Okay, I stop."
